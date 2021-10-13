@@ -1,0 +1,138 @@
+# 1. Spark core concept
+run time architecture This documents aims to explain the run-time architecture of Apache Spark along with key Spark 
+
+
+Before diving into the details of Spark internals, it is important to have a high-level understanding of the 
+core concepts and the various core components in Spark. 
+
+Infrastructure part:
+- Spark Cluster:
+- Spark Cluster Manager: Local, Standalone, YARN, Mesos, K8s
+- Spark Master node: (Only exists when spark is in Standalone mode)
+- Spark worker node: A worker offers resources (memory, CPU, etc.) to the cluster manager, it may contain one or more 
+               executors which perform the tasks that assigned by the spark driver.
+
+## 1.1 Concept from Infrastructure
+
+### 1.1.1 Spark Cluster and cluster manager:
+
+A Spark cluster is a collection of servers that can run spark jobs.
+
+To efficiently and intelligently manage a collection of servers, the Spark cluster uses a **resource management system** 
+such as:
+- Local (no cluster)
+- Standalone (Spark native resource manager)
+- Apache YARN 
+- Apache Mesos
+- K8s.
+
+The two main components in a typical resource management system are the cluster manager and the worker.
+
+The cluster manager knows where the workers are located, how much memory they have, and the number of CPU cores each one has. One of the main responsibilities of the cluster manager is to orchestrate the work by assigning it to each worker.
+A worker offers resources (memory, CPU, etc.) to the cluster manager and performs the assigned work.
+
+
+Software part:
+
+- Spark application: A spark application is a self-contained computation that runs user-supplied code to compute a result. 
+                     It consists of a driver program (the driver can be on client side or cluster side) and executors on the cluster.
+                     
+- job: A job is a parallel computation consisting of multiple stages. Jobs are divided into "stages" based on the **shuffle
+       boundary**. Data shuffling means data are transferred from one executor to another executor (These executors can 
+       be on the same node or different node).
+       Operations such as partitionBy, groupBy, orderBy will lead to data shuffling. Thus trigger a new stage.
+
+- stage:
+- task: 
+
+- SparkSession: SparkSession was introduced in version 2.0 and is a unified entry point to access underlying API such as RDD, DataFrame and DataSet. 
+      In spark-shell, the object spark (SparkSession) is available by default. In an interactive context, it can be 
+      created programmatically using SparkSession builder pattern(e.g. SparkSession.builder.master.config(...).getOrCreate).
+- SparkContext: Prior Spark 2.0, Spark Context was the entry point of any spark application. It uses a sparkConf 
+              which had all the cluster configs and parameters to create a Spark Context object. But it can just use RDDs API, 
+              To use spark SQL, we need to create SQLContext, To use hive, we need HiveContext. To use streaming, we need Streaming Application.
+- Spark executor
+- 
+- Spark shell, 
+- ETC. 
+
+The spark run time architecture contains:
+- driver : **The driver is the process where the main method runs**. First the driver will call ClusterManager to 
+         reserve resource and create executors on the worker nodes based on the spark context definition. After the creation of executor, driver and executor 
+-        communicate directly. The driver/SparkContext converts the user program into Jobs->Stages->Tasks and after that it schedules the tasks on the executors.
+- cluster :
+- Spark worker:
+- Spark executors:
+
+- At last, we will see how Apache spark works using these components.
+
+
+# RDD Dependency types and the optimization at DAGScheduler
+– **Narrow dependency**:  each partition of the parent RDD is used by at most one partition of the child RDD. 
+           This means the task can be executed locally, and we don’t have to shuffle. (Eg: map, flatMap, Filter, sample)
+– **Wide dependency**: multiple child partitions may depend on one partition of the parent RDD. 
+           This means we have to shuffle data unless the parents are hash-partitioned (Eg: sortByKey, reduceByKey, groupByKey, cogroupByKey, join, cartesian)
+
+Thanks to the lazy evaluation technique, the **DAGScheduler will be able to optimize the stages before submitting the job**:
+- pipelines narrow operations within a stage,
+- picks join algorithms based on partitioning (try to minimize shuffles), 
+- reuses previously cached data.
+
+# Spark application execution flow
+
+A spark application may contain multiple jobs. When an action is called on an RDD (dataframe and dataset is the abstraction
+                     of RDD), the SparkContext will submit a job to the DAGScheduler. 
+
+
+Starting by creating a Rdd object by using SparkContext, then we transform it with the filter transformation and finally call action count. When an action is called on rdd, the SparkContext will submit a job to the DAGScheduler – where the very first optimizations happen.
+
+The DAGSchedule receives target Rdds, functions to run on each partition (pipe the transformations, action), and a listener for results. It will:
+– build Stages of Task objects (code + preferred location)
+– submit them to TaskScheduler as ready
+– Resubmit failed Stages if outputs are lost
+
+The TaskScheduler is responsible for launching tasks at executors in our cluster, re-launch failed tasks several times, return the result to DAGScheduler.
+
+We can now quickly summarize:
++ We submit a jar application which contains jobs
++ The job gets submitted to DAGScheduler via SparkContext will be split in to Stages. The DAGScheduler schedules the run order of these stages.
++ A Stage contains a set of tasks to run on Executors. The TaskScheduler schedules the run of tasks.
+
+Transformation
+
+| Operation Name | Description |
+|-------------------------| ------------------------------------------|
+| map(f: T => U) | Return a MappedRDD[U] by applying function f to each element |
+| flatmap(f: T => TraversableOnce[U]) | Return a new FlatMappedRDD[U] by first applying a function to all elements and then flattening the results. |
+| filter(f: T => Boolean) | Return a FilteredRDD[T] having elemnts that f return true |
+|mapPartitions(Iterator[T] => Iterator[U])	| Return a new MapPartitionsRDD[U] by applying a function to each partition |
+|sample(withReplacement, fraction, seed) | Return a new PartitionwiseSampledRDD[T] which is a sampled subset |
+|union(otherRdd[T])	| Return a new UnionRDD[T] by making union with another Rdd |
+|intersection(otherRdd[T]) | Return a new RDD[T] by making intersection with another Rdd|
+|distinct()	| Return a new RDD[T] containing distinct elements |
+|groupByKey()  | Being called on (K,V) Rdd, return a new RDD[([K], Iterable[V])] |
+|reduceByKey(f: (V, V) => V) | Being called on (K, V) Rdd, return a new RDD[(K, V)] by aggregating values using feg: reduceByKey(_+_)|
+|sortByKey([ascending])	| Being called on (K,V) Rdd where K implements Ordered, return a new RDD[(K, V)] sorted by K |
+|join(other: RDD[(K, W))| Being called on (K,V) Rdd, return a new RDD[(K, (V, W))] by joining them |
+|cogroup(other: RDD[(K, W))	| Being called on (K,V) Rdd, return a new RDD[(K, (Iterable[V], Iterable[W]))] such that for each key k in this & other, get a tuple with the list of values for that key in this as well as other|
+|cartesian(other: RDD[U]) | Return a  new RDD[(T, U)] by applying product |
+
+
+
+Actions
+
+|Operation name | Description |
+|-------------------------| ------------------------------------------|
+| reduce(f: (T, T) => T) | return T by reducing the elements using specified commutative and associative binary operator |
+| collect()| Return an Array[T] containing all elements|
+|count()	| Return the number of elements |
+|first()	| Return the first element|
+|take(num)	| Return an Array[T] taking first num elements|
+|takeSample(withReplacement, fraction, seed) | Return an Array[T] which is a sampled subset|
+|takeOrdered(num)(order) | Return an Array[T] having num smallest or biggest (depend on order) elements|
+|saveAsTextFile(fileName) | |
+|saveAsSequenceFile(fileName) | |
+|saveAsObjectFile(fileName)	| Save (serialized) Rdd |
+|countByValue()	| Return a Map[T, Long] having the count of each unique value |
+|countByKey() |	Return a Map[K, Long] counting the number of elements for each key |
+|foreach(f: T=>Unit) |	Apply function f to each element |
