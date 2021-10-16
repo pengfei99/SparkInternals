@@ -8,7 +8,7 @@ core concepts and the various core components in Spark.
 Infrastructure part:
 - Spark Cluster:
 - Spark Cluster Manager: Local, Standalone, YARN, Mesos, K8s
-- Spark Master node: (Only exists when spark is in Standalone mode)
+- Spark Master node: (The node who can accept your spark submit request or spark-shell connection)
 - Spark worker node: A worker offers resources (memory, CPU, etc.) to the cluster manager, it may contain one or more 
                executors which perform the tasks that assigned by the spark driver.
 
@@ -18,18 +18,92 @@ Infrastructure part:
 
 A Spark cluster is a collection of servers that can run spark jobs.
 
-To efficiently and intelligently manage a collection of servers, the Spark cluster uses a **resource management system** 
-such as:
+To efficiently and intelligently manage a collection of servers, the Spark cluster uses a **resource manager**.
+For now spark support the following resource managers:
 - Local (no cluster)
 - Standalone (Spark native resource manager)
 - Apache YARN 
 - Apache Mesos
 - K8s.
 
-The two main components in a typical resource management system are the cluster manager and the worker.
 
-The cluster manager knows where the workers are located, how much memory they have, and the number of CPU cores each one has. One of the main responsibilities of the cluster manager is to orchestrate the work by assigning it to each worker.
+The cluster manager knows where the workers are located, how much memory they have, and the number of CPU cores each 
+one has. One of the main responsibilities of the cluster manager is to orchestrate the work by assigning it to each worker.
+
+### 1.1.2 Master node 
+The master node is responsible for handling spark submit request or spark shell connection. Depends on different resource
+manager that the cluster used, the master node negotiates with the resource manager to get required resources. 
+The spark driver's location may not be on the master node.
+
+#### 1.1.2.1 Standalone, 
+The official [doc](http://spark.apache.org/docs/latest/spark-standalone.html) of the standalone mode. 
+
+When you submit a job with the following command, the standalone cluster allows **client mode and cluster mode**. 
+```shell
+./bin/spark-submit \
+  --class <main-class> \
+  --master <master-url> \
+  --deploy-mode <deploy-mode> \
+  --conf <key>=<value> \
+  ... # other options
+  <application-jar> \
+  [application-arguments]
+```
+
+- In client mode, the driver is launched in the same process as the client that submits the application. 
+- In cluster mode, however, the driver is launched from one of the Worker processes inside the cluster, and the client 
+process exits as soon as it fulfills its responsibility of submitting the application without waiting for the application 
+to finish.
+
+When you run an interactive Spark shell against the cluster with the following command, spark is always in client mode.
+```shell
+./bin/spark-shell --master spark://IP:PORT
+```
+##### Standalone Architecture Overview
+Below figure shows an overview of a spark cluster with standalone resource manager and a submit in cluster mode, it has:
+- one master node
+- three worker node
+
+In the master node, there is a **master daemon** which can handle spark submit request. This daemon also handles the 
+communication with workers.
+
+In the worker node, there is a **worker daemon** :
+- during resource scheduling time, worker daemon creates executor by creating and using another process called ExecutorBackend
+  Note one executorBackend only handles one executor(creation, termination).
+- during job execution time, it receives tasks from driver, run the tasks on executor and send result back to driver.
+  note the driver also runs on a worker in cluster mode.
+- After the job done, worker daemon close the **Executor** via **ExecutorBackend**
+
+When there is an **action** in the rdd, df or ds process, the worker will send result to the driver, in cluster mode, 
+this happens inside the cluster.
+
+![spark_cluster_architecture_overview](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_running_application_architecture_overview.PNG)
+
+
+#### 1.1.2.2 yarn
+The official [doc](http://spark.apache.org/docs/latest/running-on-yarn.html) of the yarn mode.
+The driver's location, it's similar to standalone mode.
+
+#### 1.1.2.3 k8s
+The official [doc](https://spark.apache.org/docs/latest/running-on-kubernetes.html) of the k8s mode.
+
+spark-submit can be directly used to submit a Spark application to a Kubernetes cluster. The submission mechanism 
+works as follows:
+
+- Spark creates a Spark driver running within a Kubernetes pod(**driver never runs on the submitter, so no client mode**).
+- The driver creates executors which are also running within Kubernetes pods and connects to them, and executes application code.
+- When the application completes, the executor pods terminate and are cleaned up, but the driver pod persists logs and 
+  remains in “completed” state in the Kubernetes API until it’s eventually garbage collected or manually cleaned up.
+
+**The driver and executor pod scheduling is handled by Kubernetes. Communication to the Kubernetes API is done via fabric8.** 
+
+![](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_on_k8s.PNG)
+### 1.1.3 Worker node
+
 A worker offers resources (memory, CPU, etc.) to the cluster manager and performs the assigned work.
+
+
+
 
 
 Software part:
