@@ -1,11 +1,16 @@
+package org.pengfei.example
+
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 
 object WordCount {
-  // Step1 : create spark session
-  val spark=SparkSession.builder().master("local[4]").appName("WordCount").getOrCreate()
 
-  def main(args: Array[String]): Unit ={
+  def main(args:Array[String]): Unit ={
+    Logger.getLogger("org").setLevel(Level.OFF)
+    Logger.getLogger("akka").setLevel(Level.OFF)
+    // Step1 : create spark session
+    val spark=SparkSession.builder().master("local[4]").appName("WordCount").getOrCreate()
+
     // step2: create data
     val data=Seq("hadoop spark","hadoop flume","spark kafka")
     val textRdd=spark.sparkContext.parallelize(data)
@@ -16,7 +21,7 @@ object WordCount {
     // val splitRdd=textRdd.flatMap(item=>item.split())
     // short version, when we only have one arg in the lamda expression. we can replace by it by _
     // in another word item=>item is replaced by _ (this is a scala shortcut)
-    val splitRdd=textRdd.flatMap(_.split())
+    val splitRdd=textRdd.flatMap(_.split(" "))
 
     // assign a init counter to each word,
     // long version
@@ -39,8 +44,10 @@ object WordCount {
     // here we can't use short cut, because we don't have _ in the input as item.
     val strRdd=reduceRdd.map(item=>s"${item._1}, ${item._2}")
 
-    // collect rdd to driver
+    // collect rdd to the driver
     strRdd.collect().foreach(item=>println(item))
+   // get the logical plan of the RDD transformation pipeline
+    print(strRdd.toDebugString)
 
     // step5: close spark session
     spark.sparkContext.stop()
