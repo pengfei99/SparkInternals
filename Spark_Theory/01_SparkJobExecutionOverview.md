@@ -12,6 +12,7 @@ Infrastructure part:
 - Spark worker node: A worker offers resources (memory, CPU, etc.) to the cluster manager, it may contain one or more 
                executors which perform the tasks that assigned by the spark driver.
 
+
 ## 1.1 Concept from Infrastructure
 
 ### 1.1.1 Spark Cluster and cluster manager:
@@ -106,7 +107,7 @@ A worker offers resources (memory, CPU, etc.) to the cluster manager and perform
 
 
 
-Software part:
+## 1.2 Concept from Software part:
 
 - Spark application: A spark application is a self-contained computation that runs user-supplied code to compute a result. 
                      It consists of a driver program (the driver can be on client side or cluster side) and executors on the cluster.
@@ -140,6 +141,11 @@ The spark run time architecture contains:
 
 - At last, we will see how Apache spark works using these components.
 
+# RDD
+RDD has five main features:
+- partition data
+- compute logic
+- rdd dependencies
 
 # RDD Dependency types and the optimization at DAGScheduler
 – **Narrow dependency**:  each partition of the parent RDD is used by at most one partition of the child RDD. 

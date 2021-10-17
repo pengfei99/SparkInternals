@@ -8,11 +8,11 @@ A spark session can have
 ```scala
 import org.apache.spark.sql.SparkSession
 
-# The getOrCreate means the SparkSessionBuilder will try to get a spark session if there is one already created or create a new one
-# and assigns the newly created SparkSession as the global default
+// The getOrCreate means the SparkSessionBuilder will try to get a spark session if there is one already created or create a new one
+// and assigns the newly created SparkSession as the global default
 
-# Note that enableHiveSupport here is similar to creating a HiveContext and all it does is enables access to Hive 
-# metastore, Hive serdes, and Hive udfs.
+// Note that enableHiveSupport here is similar to creating a HiveContext and all it does is enables access to Hive 
+// metastore, Hive serdes, and Hive udfs.
 val spark = SparkSession.builder
 .appName("SparkSessionExample") 
 .master("local[4]") 
