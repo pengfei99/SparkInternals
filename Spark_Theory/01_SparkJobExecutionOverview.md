@@ -174,9 +174,33 @@ The DAGSchedule receives target Rdds, functions to run on each partition (pipe t
 The TaskScheduler is responsible for launching tasks at executors in our cluster, re-launch failed tasks several times, return the result to DAGScheduler.
 
 We can now quickly summarize:
-+ We submit a jar application which contains jobs
-+ The job gets submitted to DAGScheduler via SparkContext will be split in to Stages. The DAGScheduler schedules the run order of these stages.
-+ A Stage contains a set of tasks to run on Executors. The TaskScheduler schedules the run of tasks.
+- We submit a jar application which contains jobs
+- The job gets submitted to DAGScheduler via SparkContext will be split in to Stages. The DAGScheduler schedules the run order of these stages.
+- A Stage contains a set of tasks to run on Executors. The TaskScheduler schedules the run of tasks.
+
+1. When you submit a spark application to the cluster in cluster mode, the cluster will find a worker to create
+   a driver of your spark application that runs the main() of your spark application. Inside the driver, we have a
+   spark context and the data pipeline of how you transform your data. The driver analyse the data pipeline and generate
+   logical plans of your spark applications. Note a spark application has multiple job, a job has multiple stages, a stage
+   has multiple tasks.
+
+2. If the driver encounter a **rdd.action()**, it calls **DAGScheduler.runJob(rdd, processPartition, resultHandler)
+   to create a job**. If no action, it just adds more stages into the job.
+
+3. DAGScheduler's runJob() calls **submitJob(rdd, func, partitions, allowLocal, resultHandler) to submit a job**.
+4. submitJob() gets a **jobId**, then wrap the function once again and send a **JobSubmitted message** to **DAGSchedulerEventProcessActor**.
+   Upon receiving this message, the actor calls **dagScheduler.handleJobSubmitted() to handle the submitted job**.
+   This is an example of **event-driven programming model**.
+5. **handleJobSubmitted() firstly calls finalStage = newStage()** to create stages, then it submitStage(finalStage).
+   If finalStage has parents, the parent stages will be submitted first. In this case, finalStage is actually submitted
+   by submitWaitingStages().
+6. Each stage has a corresponding taskSet which contains computation tasks for each partition, DAGScheduler sends the stages(taskSets) to
+   the **TaskScheduler** and ask it to run tasks on the executors.
+
+Below figure shows a graphical representation of the above process
+
+![spark_application_submission_process](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_application_submission_process.PNG)
+
 
 Transformation
 
