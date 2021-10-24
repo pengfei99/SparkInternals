@@ -65,3 +65,8 @@ If you run the above code, you can find the generated dag in the spark ui in the
 
 ![spark_ui_physical_plan](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_ui_physical_plan.PNG)
 
+Note, if you are using the pyspark version of the word count, you may have a different physical plan in the spark ui.
+That's because py4j translate and optimize your python code to java differently.
+Below is an example of the pyspark physical plan
+![pyspark_ui_physical_plan](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/pyspark_word_count_physical_plan.png)
+

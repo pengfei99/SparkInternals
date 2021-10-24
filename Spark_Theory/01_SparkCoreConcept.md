@@ -1,6 +1,4 @@
 # 1. Spark core concept
-run time architecture This documents aims to explain the run-time architecture of Apache Spark along with key Spark 
-
 
 Before diving into the details of Spark internals, it is important to have a high-level understanding of the 
 core concepts and the various core components in Spark. 
