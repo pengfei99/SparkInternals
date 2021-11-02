@@ -58,7 +58,7 @@ Image we call the doStuff() function inside my spark application. To run map, th
 and send it to the executors. As doStuff is a closure function, the spark driver needs to serialize the enclosed scope.
 In our case, the enclosed scope is the **MyClass**. Check the below figure.
 
-![spark_closure_function](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_closure_function.png)
+![spark_closure_function](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_closure_function.PNG)
 
 In a normal case, this would not be a big problem. We may lose some performance, because serialization of the class 
 from the spark driver and deserialization from the executor both take time. But imagine two scenarios:
