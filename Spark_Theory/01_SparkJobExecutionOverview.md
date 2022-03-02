@@ -109,45 +109,85 @@ A worker offers resources (memory, CPU, etc.) to the cluster manager and perform
 
 ## 1.2 Concept from Software part:
 
-- Spark application: A spark application is a self-contained computation that runs user-supplied code to compute a result. 
-                     It consists of a driver program (the driver can be on client side or cluster side) and executors on the cluster.
+### 1.2.1 Spark application and drivers
+
+#### Spark application
+A **spark application** is a self-contained computation that runs user-supplied code to compute a result. 
+It consists of a driver program (the driver can be on client side or cluster side) and executors on the cluster.
+A spark application can have multiple jobs.
+
+#### Spark driver
+**The driver is the process where the main method runs**. The driver will not only reserve resource and create executor, 
+but also schedule the task on the executors.
+
+
+##### Driver reserve resource
+First the driver will call **ClusterManager** to reserve resource and create executors on the worker nodes based on 
+the spark context/conf definition. Note for different spark cluster mode(e.g. stand alone, k8s, yarn, etc.), the ClusterManager
+can be different.
+
+After the creation of executor, driver and executor communicate directly. 
+
+##### Driver 
+The driver/SparkContext converts Spark Application (the user program main method) ->  Driver -> Jobs->Stages->Tasks 
+and after that it schedules the tasks on the executors.
+
+
                      
-- job: A job is a parallel computation consisting of multiple stages. Jobs are divided into "stages" based on the **shuffle
-       boundary**. Data shuffling means data are transferred from one executor to another executor (These executors can 
-       be on the same node or different node).
-       Operations such as partitionBy, groupBy, orderBy will lead to data shuffling. Thus trigger a new stage.
+### 1.2.2 job
 
-- stage:
-- task: 
+A job is a parallel computation consisting of multiple stages. Jobs are divided into "stages" based on the **shuffle
+boundary**. Data shuffling means data are transferred from one executor to another executor (These executors can 
+be on the same node or different node).
 
-- SparkSession: SparkSession was introduced in version 2.0 and is a unified entry point to access underlying API such as RDD, DataFrame and DataSet. 
-      In spark-shell, the object spark (SparkSession) is available by default. In an interactive context, it can be 
-      created programmatically using SparkSession builder pattern(e.g. SparkSession.builder.master.config(...).getOrCreate).
-- SparkContext: Prior Spark 2.0, Spark Context was the entry point of any spark application. It uses a sparkConf 
-              which had all the cluster configs and parameters to create a Spark Context object. But it can just use RDDs API, 
-              To use spark SQL, we need to create SQLContext, To use hive, we need HiveContext. To use streaming, we need Streaming Application.
-- Spark executor
-- 
-- Spark shell, 
-- ETC. 
+Operations such as **partitionBy, groupBy, orderBy** will lead to data shuffling. Thus trigger a new stage.
 
-The spark run time architecture contains:
-- driver : **The driver is the process where the main method runs**. First the driver will call ClusterManager to 
-         reserve resource and create executors on the worker nodes based on the spark context definition. After the creation of executor, driver and executor 
--        communicate directly. The driver/SparkContext converts the user program into Jobs->Stages->Tasks and after that it schedules the tasks on the executors.
-- cluster :
-- Spark worker:
-- Spark executors:
+### 1.2.3 stage: 
 
-- At last, we will see how Apache spark works using these components.
+### 1.2.4 task: 
 
-# RDD
+### 1.2.5 SparkSession: 
+SparkSession was introduced in version 2.0 and is a unified entry point to access underlying API such as RDD, 
+DataFrame and DataSet. 
+
+In spark-shell, the object spark (SparkSession) is available by default. In an interactive context, it can be 
+created programmatically using SparkSession builder pattern(e.g. SparkSession.builder.master.config(...).getOrCreate).
+
+### 1.2.6 SparkContext
+Prior to Spark 2.0, Spark Context was the entry point of any spark application. It uses a sparkConf 
+which had all the cluster configs and parameters to create a Spark Context object. But it can just use RDDs API, 
+To use spark SQL, we need to create SQLContext, To use hive, we need HiveContext. To use streaming, we need Streaming Application.
+
+### 1.2.7 Spark executor
+
+Executors are worker nodes' jvm processes in charge of running individual tasks in a given Spark job. 
+
+- **In cluster mode, each executor is a separate jvm instances.** 
+- In local mode, spark starts only a single JVM to emulate all components (i.e. driver and executors)
+
+Executors are launched at the beginning of a Spark application and typically run for the entire lifetime of 
+an application. Once they have run the task they send the results to the driver. 
+
+They also provide in-memory storage for RDDs that are cached by user programs through **Block Manager**. 
+
+When executors are started they register themselves with the driver and from so on they communicate directly. 
+The workers are in charge of communicating the cluster manager the availability of their resources.
+A worker can have multiple executor 
+
+
+# Spark Data structures
+
+- RDD
+- Dataframe
+- Dataset
+
+##  RDD
 RDD has five main features:
 - partition data
 - compute logic
 - rdd dependencies
 
-# RDD Dependency types and the optimization at DAGScheduler
+### RDD Dependency types and the optimization at DAGScheduler
 – **Narrow dependency**:  each partition of the parent RDD is used by at most one partition of the child RDD. 
            This means the task can be executed locally, and we don’t have to shuffle. (Eg: map, flatMap, Filter, sample)
 – **Wide dependency**: multiple child partitions may depend on one partition of the parent RDD. 
