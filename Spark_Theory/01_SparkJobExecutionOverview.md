@@ -144,6 +144,12 @@ Operations such as **partitionBy, groupBy, orderBy** will lead to data shuffling
 
 ### 1.2.3 stage: 
 
+A stage groups a list of operations that can be calculated on the same executor (no shuffle needed). 
+
+The possible operation name:
+- WholeStageCodegen:
+- mapPartitions
+
 ### 1.2.4 task: 
 
 ### 1.2.5 SparkSession: 
