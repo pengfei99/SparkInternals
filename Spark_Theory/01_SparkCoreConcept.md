@@ -224,11 +224,11 @@ We can now quickly summarize:
 
 1. When you submit a spark application to the cluster in cluster mode, the cluster will find a worker to create
    a driver of your spark application that runs the main() of your spark application. Inside the driver, we have a
-   spark context and the data pipeline of how you transform your data. The driver analyse the data pipeline and generate
-   logical plans of your spark applications. Note a spark application has multiple job, a job has multiple stages, a stage
+   spark context and the data pipeline of how you transform your data. The driver analyzes the data pipeline and generates
+   logical plans of your spark applications. Note a spark application has multiple jobs, a job has multiple stages, a stage
    has multiple tasks.
 
-2. If the driver encounter a **rdd.action()**, it calls **DAGScheduler.runJob(rdd, processPartition, resultHandler)
+2. If the driver encounters a **rdd.action()**, it calls **DAGScheduler.runJob(rdd, processPartition, resultHandler)
    to create a job**. If no action, it just adds more stages into the job.
 
 3. DAGScheduler's runJob() calls **submitJob(rdd, func, partitions, allowLocal, resultHandler) to submit a job**.
@@ -241,12 +241,12 @@ We can now quickly summarize:
 6. Each stage has a corresponding taskSet which contains computation tasks for each partition, DAGScheduler sends the stages(taskSets) to
    the **TaskScheduler** and ask it to run tasks on the executors.
 
-Below figure shows a graphical representation of the above process
+The below figure shows a graphical representation of the above process
 
 ![spark_application_submission_process](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_application_submission_process.PNG)
 
 
-Transformation
+Transformation list
 
 | Operation Name | Description |
 |-------------------------| ------------------------------------------|
@@ -267,7 +267,7 @@ Transformation
 
 
 
-Actions
+Actions list
 
 |Operation name | Description |
 |-------------------------| ------------------------------------------|
@@ -284,3 +284,109 @@ Actions
 |countByValue()	| Return a Map[T, Long] having the count of each unique value |
 |countByKey() |	Return a Map[K, Long] counting the number of elements for each key |
 |foreach(f: T=>Unit) |	Apply function f to each element |
+
+# Spark Job Execution Workflow
+
+Suppose we already have created a spark session in interactive mode. And the user submits the below code
+
+```scala
+val df = spark.read.parquet("data.parquet")
+val result = df.filter($"age" > 25).groupBy("city").count()
+result.show()
+```
+
+## Step 1 Catalyst Optimizer (Query Plan Phase)
+
+Catalyst is the Spark SQL's query optimizer, and it transforms your code through multiple stages:
+
+### a. Unresolved Logical Plan
+- Direct translation from your DataFrame/Dataset code.
+- References columns and tables, but no schema binding yet.
+
+### b. Analyzed Logical Plan
+
+Spark validates schemas, resolves column/table references using catalogs.
+
+### c. Optimized Logical Plan
+
+Catalyst applies a series of rule-based optimizations:
+- Predicate pushdown
+- Constant folding
+- Projection pruning
+- Join reordering (if enabled)
+
+### d. Physical Plan Generation
+- Multiple physical plans are generated using different strategies (e.g., sort-merge join vs broadcast join).
+- Catalyst chooses the best physical plan based on cost model.
+
+## Step2: Tungsten Execution Engine (Codegen & Physical Operators)
+
+Tungsten is Spark’s high-performance execution engine. It improves CPU & memory efficiency.
+
+- Whole-Stage Code Generation (WSCG): Generates Java bytecode for the entire physical stage (pipelined operators).
+- Off-heap memory management: Reduces GC pressure.
+- Cache-friendly binary format (UnsafeRow): Improves memory layout.
+- Vectorized processing: Especially for Parquet/ORC columnar reads.
+
+> Tungsten makes the physical plan run fast — not just “what” to do, but “how efficiently” to do it.
+> Tungsten makes the physical plan for **CPU**
+> Tungsten is fully integrated since Spark 2.x
+> 
+
+## Step2bis: Spark rapids
+
+If you install and enable rapids, at this step, Rapids will look for operations which can be executed by GPU, and 
+coordinates with Tungsten to update the physical plan.
+
+You can find out more details in their [github repo](https://github.com/NVIDIA/spark-rapids)
+
+## Step 3: RDD Layer (Translation to Spark Core)
+
+- The physical plan is translated to a DAG of RDDs.
+- Actions like .show(), .collect(), or .write() trigger execution.
+
+## Step 4: DAGScheduler (Stage Planning)
+
+- Breaks the RDD DAG into stages separated by shuffle boundaries.
+- Determines stage dependencies.
+
+## Step 5: TaskScheduler (Task Execution)
+- Submits individual tasks (per partition) to Executor nodes.
+- Handles retries, task locality, and resource management.
+
+## Step 6: Executor Nodes (On Workers)
+
+Each executor:
+ - Loads input partitions (e.g., Parquet files)
+ - Runs the generated bytecode (Tungsten)
+ - Writes shuffle data if needed
+ - Returns results or writes output
+
+## Step 7. Result Return
+ - Results (for actions like collect or show) are sent back to the driver.
+ - Or, if you're writing to disk, files are committed.
+ - 
+```text
+User Code
+   ↓
+Catalyst
+   - Unresolved Logical Plan
+   - Analyzed Logical Plan
+   - Optimized Logical Plan
+   - Physical Plan
+   ↓
+Tungsten/Rapids
+   - Whole-stage codegen
+   - Memory mgmt & vectorization
+   ↓
+RDD DAG
+   ↓
+DAGScheduler (stage DAG)
+   ↓
+TaskScheduler (task-level)
+   ↓
+Executors (on workers)
+   ↓
+Results / Output
+
+```
