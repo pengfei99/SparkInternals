@@ -336,7 +336,8 @@ Tungsten is Spark’s high-performance execution engine. It improves CPU & memor
 ## Step2bis: Spark rapids
 
 If you install and enable rapids, at this step, Rapids will look for operations which can be executed by GPU, and 
-coordinates with Tungsten to update the physical plan.
+coordinates with Tungsten to update the origin physical plan. All `GPU-compatible parts of the plan` are 
+`rewritten to GPU operators` during the physical plan generation time.
 
 You can find out more details in their [github repo](https://github.com/NVIDIA/spark-rapids)
 
@@ -365,7 +366,9 @@ Each executor:
 ## Step 7. Result Return
  - Results (for actions like collect or show) are sent back to the driver.
  - Or, if you're writing to disk, files are committed.
- - 
+
+## Workflow summery
+
 ```text
 User Code
    ↓
@@ -375,7 +378,7 @@ Catalyst
    - Optimized Logical Plan
    - Physical Plan
    ↓
-Tungsten/Rapids
+Tungsten(CPU)/Rapids(GPU)
    - Whole-stage codegen
    - Memory mgmt & vectorization
    ↓
