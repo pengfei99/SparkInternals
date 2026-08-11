@@ -76,7 +76,7 @@ In the worker node, there is a **worker daemon** :
 When there is an **action** in the rdd, df or ds process, the worker will send result to the driver, in cluster mode, 
 this happens inside the cluster.
 
-![spark_cluster_architecture_overview](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_running_application_architecture_overview.PNG)
+![spark_cluster_architecture_overview](../img/spark_running_application_architecture_overview.PNG)
 
 
 #### 1.1.2.2 yarn
@@ -96,7 +96,7 @@ works as follows:
 
 **The driver and executor pod scheduling is handled by Kubernetes. Communication to the Kubernetes API is done via fabric8.** 
 
-![](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_on_k8s.PNG)
+![](../img/spark_on_k8s.PNG)
 ### 1.1.3 Worker node
 
 A worker offers resources (memory, CPU, etc.) to the cluster manager and performs the assigned work.
@@ -243,7 +243,7 @@ We can now quickly summarize:
 
 The below figure shows a graphical representation of the above process
 
-![spark_application_submission_process](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_application_submission_process.PNG)
+![spark_application_submission_process](../img/spark_application_submission_process.PNG)
 
 
 Transformation list

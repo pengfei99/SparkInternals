@@ -41,7 +41,7 @@ By reading the above code, you can easily build a lineage rawData->textRdd->spli
 
 Below figure shows a graphical representation of a **spark RDD logical plan**.
 
-![spark_rdd_logical_plan](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_rdd_logical_plan.PNG)
+![spark_rdd_logical_plan](../img/spark_rdd_logical_plan.PNG)
 
 In the graph, you can only see the **class type** of the RDD such as 
 - ParallelCollectionRDD : textRdd is created by calling parallelize, so it has this type
@@ -159,7 +159,7 @@ Transformation leads to wide: groupByKey, reduceByKey and join operations whose 
 
 Below figure shows the difference between narrow and wide dependency.
 
-![spark_rdd_dependencies](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_rdd_dependencies.PNG)
+![spark_rdd_dependencies](../img/spark_rdd_dependencies.PNG)
 
 ### 2.3.2 Some RDD transformation dependency example
 
@@ -169,7 +169,7 @@ union() simply combines two RDDs together. It never changes the partition of its
 the borders of original RDDs in order to make it easy to revisit the partitions from RDD produced by union()
 
 
-![spark_union_rdd_dependencies](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_union_rdd_dependencies.PNG)
+![spark_union_rdd_dependencies](../img/spark_union_rdd_dependencies.PNG)
 
 
 #### 2.3.2.2 GroupByKey
@@ -184,7 +184,7 @@ requires all map side data be inserted into a hash table, leading to more object
 ArrayBuffer is essentially a CompactBuffer which is an append-only buffer similar to ArrayBuffer, but more 
 memory-efficient for small buffers.
 
-![spark_groupByKey_rdd_dependencies](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_groupByKey_rdd_dependencies.PNG)
+![spark_groupByKey_rdd_dependencies](../img/spark_groupByKey_rdd_dependencies.PNG)
 
 
 #### 2.3.2.3 ReduceByKey
@@ -192,7 +192,7 @@ reduceByKey() is similar to MapReduce. The data flow is equivalent. redcuceByKey
 which is carried out by mapPartitions before shuffle and results in MapPartitionsRDD. After shuffle, 
 aggregate + mapPartitions is applied to ShuffledRDD. Again, we get a MapPartitionsRDD
 
-![spark_reduceByKey_rdd_dependencies](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_reduceByKey_rdd_dependencies.PNG)
+![spark_reduceByKey_rdd_dependencies](../img/spark_reduceByKey_rdd_dependencies.PNG)
 
 
 #### 2.3.2.4 Distinct
@@ -204,4 +204,4 @@ map(). After that, reduceByKey() is used to do some shuffle (mapSideCombine->red
 only key is taken from <K, null> by map()(MappedRDD). In the figure, the three block in blue represents the 
 ReduceByKey() that we called.
 
-![spark_distinct_rdd_dependencies](https://raw.githubusercontent.com/pengfei99/SparkInternals/main/img/spark_distinct_rdd_dependencies.PNG)
+![spark_distinct_rdd_dependencies](../img/spark_distinct_rdd_dependencies.PNG)
